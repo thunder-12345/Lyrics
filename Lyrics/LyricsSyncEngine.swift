@@ -1,17 +1,48 @@
 import Foundation
+import NaturalLanguage
 
 @MainActor
 final class LyricsSyncEngine: ObservableObject {
     @Published var statusText = "Waiting for a match…"
     @Published var currentLine = ""
     @Published var nextLine = ""
+    @Published var isEnglishDetected = false
+    @Published var isTranslating = false
+    @Published var displayMode: LyricsDisplayMode = LyricsSyncEngine.loadSavedDisplayMode() {
+        didSet {
+            UserDefaults.standard.set(displayMode.rawValue, forKey: Self.displayModeDefaultsKey)
+            if displayMode == .translated || displayMode == .combined {
+                triggerTranslationIfNeeded()
+            }
+            // Reflect the switch immediately rather than waiting for the
+            // next tick -- effectiveLyrics() falls back to Original on its
+            // own if the newly-selected mode isn't ready yet.
+            if let match = currentMatch, !isPaused {
+                updateDisplayedLyrics(match: match)
+                pushLiveActivityIfNeeded(match: match, isPaused: false)
+            }
+        }
+    }
+
+    private static let displayModeDefaultsKey = "com.jayant.lyrics.displayMode"
+
+    private static func loadSavedDisplayMode() -> LyricsDisplayMode {
+        guard let raw = UserDefaults.standard.string(forKey: displayModeDefaultsKey),
+              let mode = LyricsDisplayMode(rawValue: raw) else { return .original }
+        return mode
+    }
 
     private let gistClient = NowPlayingGistClient()
     private let lrclib = LRCLIBClient()
     private let lyricsOvh = LyricsOvhClient()
     private let liveActivity = LiveActivityController()
+    private let localizationCache = LyricsLocalizationCache()
+    private let translator = GeminiTranslationClient()
     private var tickTimer: Timer?
     private var pollTimer: Timer?
+    private var transliteratedLyrics: LRCLyrics?
+    private var translatedLyrics: LRCLyrics?
+    private var translationTask: Task<Void, Never>?
 
     private var currentMatch: TrackMatch?
     private var currentLyrics: LRCLyrics?
@@ -147,6 +178,13 @@ final class LyricsSyncEngine: ObservableObject {
         pausedAtPosition = nil
         stopBurstPolling()
 
+        translationTask?.cancel()
+        translationTask = nil
+        isTranslating = false
+        transliteratedLyrics = nil
+        translatedLyrics = nil
+        isEnglishDetected = false
+
         currentMatch = fetched
         currentLyrics = nil
         currentLine = ""
@@ -172,12 +210,14 @@ final class LyricsSyncEngine: ObservableObject {
                     currentLyrics = lyrics
                 }
                 TimingLogger.log("lyrics_ready total_ms=\(TimingLogger.elapsedMS(since: lyricsStartedAt)) synced_lines=\(currentLyrics?.lines.count ?? 0)")
+                if let lyrics = currentLyrics { prepareLocalizations(match: fetched, lyrics: lyrics) }
                 pushCurrentLyrics()
             } catch {
                 TimingLogger.log("lyrics_fetch_failed_fallback_started primary_ms=\(TimingLogger.elapsedMS(since: lyricsStartedAt)) error=\"\(error.localizedDescription)\"")
                 do {
                     currentLyrics = try await fetchFallbackLyrics(match: fetched)
                     TimingLogger.log("lyrics_ready_fallback total_ms=\(TimingLogger.elapsedMS(since: lyricsStartedAt))")
+                    if let lyrics = currentLyrics { prepareLocalizations(match: fetched, lyrics: lyrics) }
                     pushCurrentLyrics()
                 } catch {
                     TimingLogger.log("lyrics_unavailable total_ms=\(TimingLogger.elapsedMS(since: lyricsStartedAt)) error=\"\(error.localizedDescription)\"")
@@ -192,14 +232,160 @@ final class LyricsSyncEngine: ObservableObject {
         return LRCLyrics(lines: [], plain: plain)
     }
 
-    private func updateDisplayedLyrics(match: TrackMatch) {
-        guard let lyrics = currentLyrics else { return }
+    private var currentTrackKey: String? {
+        guard let currentMatch else { return nil }
+        return "\(currentMatch.trackName)|\(currentMatch.artistName)"
+    }
 
+    /// Runs once right after original lyrics are fetched for a track: detects
+    /// language (on-device, free) and, if non-English, precomputes the free
+    /// ICU transliteration. Translation itself stays lazy -- only triggered
+    /// on an actual switch to Translated -- so a song the user never asks to
+    /// translate never spends Gemini quota.
+    private func prepareLocalizations(match: TrackMatch, lyrics: LRCLyrics) {
+        isEnglishDetected = detectIsEnglish(lyrics: lyrics)
+        guard !isEnglishDetected else { return }
+        loadOrComputeTransliteration(match: match, lyrics: lyrics)
+        if displayMode == .translated || displayMode == .combined {
+            triggerTranslationIfNeeded()
+        }
+    }
+
+    /// Permissive on purpose: only a confident English detection counts as
+    /// English. Anything else -- including "can't tell", which is common on
+    /// short lyric snippets or lines mixing in English words -- leaves the
+    /// Transliterated/Translated modes enabled rather than risk hiding a
+    /// genuinely useful feature on a false negative.
+    private func detectIsEnglish(lyrics: LRCLyrics) -> Bool {
+        let sampleText = lyrics.lines.isEmpty
+            ? (lyrics.plain ?? "")
+            : lyrics.lines.prefix(20).map(\.text).joined(separator: "\n")
+        guard !sampleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
+
+        let recognizer = NLLanguageRecognizer()
+        recognizer.processString(sampleText)
+        return recognizer.dominantLanguage == .english
+    }
+
+    private func loadOrComputeTransliteration(match: TrackMatch, lyrics: LRCLyrics) {
+        let cached = localizationCache.get(track: match.trackName, artist: match.artistName)
+
+        if lyrics.lines.isEmpty {
+            let plain = cached?.transliteratedPlain ?? lyrics.plain.map(Transliterator.transliterate)
+            transliteratedLyrics = LRCLyrics(lines: [], plain: plain)
+            if cached?.transliteratedPlain == nil {
+                localizationCache.setTransliterated(lines: nil, plain: plain, track: match.trackName, artist: match.artistName)
+            }
+            return
+        }
+
+        if let cachedLines = cached?.transliteratedLines, cachedLines.count == lyrics.lines.count {
+            let lines = zip(lyrics.lines, cachedLines).map { LRCLine(time: $0.0.time, text: $0.1) }
+            transliteratedLyrics = LRCLyrics(lines: lines, plain: nil)
+            return
+        }
+
+        let lines = Transliterator.transliterate(lines: lyrics.lines)
+        transliteratedLyrics = LRCLyrics(lines: lines, plain: nil)
+        localizationCache.setTransliterated(lines: lines.map(\.text), plain: nil, track: match.trackName, artist: match.artistName)
+    }
+
+    private func triggerTranslationIfNeeded() {
+        guard translatedLyrics == nil, translationTask == nil,
+              let match = currentMatch, let lyrics = currentLyrics else { return }
+
+        let cached = localizationCache.get(track: match.trackName, artist: match.artistName)
+        if !lyrics.lines.isEmpty, let cachedLines = cached?.translatedLines, cachedLines.count == lyrics.lines.count {
+            let lines = zip(lyrics.lines, cachedLines).map { LRCLine(time: $0.0.time, text: $0.1) }
+            translatedLyrics = LRCLyrics(lines: lines, plain: nil)
+            refreshIfShowingTranslated()
+            return
+        }
+        if lyrics.lines.isEmpty, let cachedPlain = cached?.translatedPlain {
+            translatedLyrics = LRCLyrics(lines: [], plain: cachedPlain)
+            refreshIfShowingTranslated()
+            return
+        }
+
+        let trackKey = "\(match.trackName)|\(match.artistName)"
+        isTranslating = true
+        translationTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                if !lyrics.lines.isEmpty {
+                    let translated = try await self.translator.translate(segments: lyrics.lines.map(\.text))
+                    guard self.currentTrackKey == trackKey else { return }
+                    let lines = zip(lyrics.lines, translated).map { LRCLine(time: $0.0.time, text: $0.1) }
+                    self.translatedLyrics = LRCLyrics(lines: lines, plain: nil)
+                    self.localizationCache.setTranslated(lines: translated, plain: nil, track: match.trackName, artist: match.artistName)
+                } else if let plain = lyrics.plain {
+                    let translated = try await self.translator.translate(segments: [plain])
+                    guard self.currentTrackKey == trackKey else { return }
+                    self.translatedLyrics = LRCLyrics(lines: [], plain: translated.first)
+                    self.localizationCache.setTranslated(lines: nil, plain: translated.first, track: match.trackName, artist: match.artistName)
+                }
+                self.refreshIfShowingTranslated()
+            } catch {
+                TimingLogger.log("translation_failed error=\"\(error.localizedDescription)\"")
+            }
+            self.isTranslating = false
+            self.translationTask = nil
+        }
+    }
+
+    private func refreshIfShowingTranslated() {
+        guard displayMode == .translated || displayMode == .combined,
+              let match = currentMatch, !isPaused else { return }
+        updateDisplayedLyrics(match: match)
+        pushLiveActivityIfNeeded(match: match, isPaused: false)
+    }
+
+    private func effectiveLyrics(base: LRCLyrics) -> LRCLyrics {
+        switch displayMode {
+        case .original:
+            return base
+        case .transliterated:
+            return transliteratedLyrics ?? base
+        case .translated:
+            return translatedLyrics ?? base
+        case .combined:
+            return base // combined mode is handled separately in updateDisplayedLyrics
+        }
+    }
+
+    /// Current-position line lookup that works for both synced (line array)
+    /// and unsynced (plain-blob) lyrics, so combined mode can pull from
+    /// transliterated/translated sets uniformly regardless of which shape
+    /// they're in.
+    private func lineText(from lyrics: LRCLyrics?, position: TimeInterval) -> String? {
+        guard let lyrics else { return nil }
+        if lyrics.lines.isEmpty {
+            return lyrics.plain
+        }
+        return lyrics.currentLine(at: position).current?.text
+    }
+
+    private func updateDisplayedLyrics(match: TrackMatch) {
+        guard let baseLyrics = currentLyrics else { return }
+        let position = match.currentPlaybackPosition()
+
+        if displayMode == .combined {
+            let top = lineText(from: transliteratedLyrics, position: position)
+                ?? lineText(from: baseLyrics, position: position) ?? ""
+            if let bottom = lineText(from: translatedLyrics, position: position) {
+                currentLine = "\(top)\n\(bottom)"
+            } else {
+                currentLine = top
+            }
+            nextLine = ""
+            return
+        }
+
+        let lyrics = effectiveLyrics(base: baseLyrics)
         if lyrics.lines.isEmpty {
             currentLine = lyrics.plain ?? ""
             nextLine = "(unsynced lyrics)"
         } else {
-            let position = match.currentPlaybackPosition()
             let (current, next) = lyrics.currentLine(at: position)
             currentLine = current?.text ?? ""
             nextLine = next?.text ?? ""

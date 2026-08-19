@@ -7,16 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		161BC6BC6FCEA6865D8BF46D /* GeminiTranslationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 152682C0F2ECD59B0AFB3079 /* GeminiTranslationClient.swift */; };
+		1ED4B6448EC3A43F46A8A0F4 /* LyricsDisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CD562EC3AAEFD52AED203C /* LyricsDisplayMode.swift */; };
 		2617BE43965945A587328983 /* LyricActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4083413A2CC8AB30F0C0BEA /* LyricActivityAttributes.swift */; };
 		28D8DA3AD770A11119AEE11E /* LyricsWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EC5C122C8D9C8084BA422567 /* LyricsWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3D1AE21BBFD25DBB2BA0337B /* LyricsWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40C2121397C6FD1EB84BF82C /* LyricsWidgetBundle.swift */; };
 		45D95E25B7AD66C78C01FCFE /* LyricActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4083413A2CC8AB30F0C0BEA /* LyricActivityAttributes.swift */; };
+		478E87A53301AE75A10A5621 /* LyricsLocalizationCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD97DE5FD3759E54263B5CE /* LyricsLocalizationCache.swift */; };
 		6292B34F69E908AFE76F0270 /* LyricsOvhClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F87F7F50477CEB22B16B00A /* LyricsOvhClient.swift */; };
 		6A5D98C85CE464106F5D0982 /* LyricsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36FB4485ECB3395F4DF52D5A /* LyricsApp.swift */; };
 		72EF9E94D7D899B4827D181A /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 424E3E802609554AAAADB542 /* LiveActivityController.swift */; };
 		7707C0F670EC4C0AE3EE1192 /* LRCLIBClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 967C9073FFFD20C6A5294183 /* LRCLIBClient.swift */; };
 		8A08B856AFDD654535609F85 /* NowPlayingGistClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C28C3D7F829A329160C5650 /* NowPlayingGistClient.swift */; };
 		94D1E90962F8F5EA427F9D9D /* TrackMatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBDD0C323FE913077ABA6904 /* TrackMatch.swift */; };
+		9727B5CF7D49DF4EEB5701F7 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CA5B7C4B52B1E08B4DD4F0 /* AppConfig.swift */; };
+		B9B77D8022482BB488AAEB38 /* Transliterator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40CC3EAB4C91D7955F9F9B8B /* Transliterator.swift */; };
 		D2411B407A947689ACD245C0 /* LyricsSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C410A85A7A92A02D00AE84 /* LyricsSyncEngine.swift */; };
 		D62607617B84DFF16069B42E /* SilentAudioKeepAlive.swift in Sources */ = {isa = PBXBuildFile; fileRef = F889E6A768D45C0E095C6C0F /* SilentAudioKeepAlive.swift */; };
 		E5F928D06EF42B61560CCCDC /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99436CEED590E4B1D4A1055 /* ContentView.swift */; };
@@ -52,18 +57,23 @@
 /* Begin PBXFileReference section */
 		0BAE74231CD5219B58CBF418 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0DEADE4AA5ADB387CC4F3AB6 /* LyricsWidgetLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsWidgetLiveActivity.swift; sourceTree = "<group>"; };
+		152682C0F2ECD59B0AFB3079 /* GeminiTranslationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiTranslationClient.swift; sourceTree = "<group>"; };
 		36FB4485ECB3395F4DF52D5A /* LyricsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsApp.swift; sourceTree = "<group>"; };
 		40C2121397C6FD1EB84BF82C /* LyricsWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsWidgetBundle.swift; sourceTree = "<group>"; };
+		40CC3EAB4C91D7955F9F9B8B /* Transliterator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transliterator.swift; sourceTree = "<group>"; };
 		424E3E802609554AAAADB542 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		4C0D81E0CA64BF3A5DE56438 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4C28C3D7F829A329160C5650 /* NowPlayingGistClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingGistClient.swift; sourceTree = "<group>"; };
+		57CD562EC3AAEFD52AED203C /* LyricsDisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsDisplayMode.swift; sourceTree = "<group>"; };
 		64C410A85A7A92A02D00AE84 /* LyricsSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSyncEngine.swift; sourceTree = "<group>"; };
 		64F377630E4491A91632FFE2 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		64FF473466FBE409ABF0E410 /* .gitignore */ = {isa = PBXFileReference; path = .gitignore; sourceTree = "<group>"; };
 		6F87F7F50477CEB22B16B00A /* LyricsOvhClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsOvhClient.swift; sourceTree = "<group>"; };
+		76CA5B7C4B52B1E08B4DD4F0 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		87F860A980E2135A264A1552 /* Lyrics.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Lyrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9391B45BC782829A7C53F599 /* TimingLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimingLogger.swift; sourceTree = "<group>"; };
 		967C9073FFFD20C6A5294183 /* LRCLIBClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRCLIBClient.swift; sourceTree = "<group>"; };
+		9CD97DE5FD3759E54263B5CE /* LyricsLocalizationCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLocalizationCache.swift; sourceTree = "<group>"; };
 		A99436CEED590E4B1D4A1055 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B4083413A2CC8AB30F0C0BEA /* LyricActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricActivityAttributes.swift; sourceTree = "<group>"; };
 		BBDD0C323FE913077ABA6904 /* TrackMatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMatch.swift; sourceTree = "<group>"; };
@@ -95,17 +105,22 @@
 			isa = PBXGroup;
 			children = (
 				64FF473466FBE409ABF0E410 /* .gitignore */,
+				76CA5B7C4B52B1E08B4DD4F0 /* AppConfig.swift */,
 				A99436CEED590E4B1D4A1055 /* ContentView.swift */,
+				152682C0F2ECD59B0AFB3079 /* GeminiTranslationClient.swift */,
 				0BAE74231CD5219B58CBF418 /* Info.plist */,
 				424E3E802609554AAAADB542 /* LiveActivityController.swift */,
 				967C9073FFFD20C6A5294183 /* LRCLIBClient.swift */,
 				36FB4485ECB3395F4DF52D5A /* LyricsApp.swift */,
+				57CD562EC3AAEFD52AED203C /* LyricsDisplayMode.swift */,
+				9CD97DE5FD3759E54263B5CE /* LyricsLocalizationCache.swift */,
 				6F87F7F50477CEB22B16B00A /* LyricsOvhClient.swift */,
 				64C410A85A7A92A02D00AE84 /* LyricsSyncEngine.swift */,
 				4C28C3D7F829A329160C5650 /* NowPlayingGistClient.swift */,
 				64F377630E4491A91632FFE2 /* Secrets.xcconfig */,
 				F889E6A768D45C0E095C6C0F /* SilentAudioKeepAlive.swift */,
 				9391B45BC782829A7C53F599 /* TimingLogger.swift */,
+				40CC3EAB4C91D7955F9F9B8B /* Transliterator.swift */,
 			);
 			path = Lyrics;
 			sourceTree = "<group>";
@@ -223,17 +238,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9727B5CF7D49DF4EEB5701F7 /* AppConfig.swift in Sources */,
 				E5F928D06EF42B61560CCCDC /* ContentView.swift in Sources */,
+				161BC6BC6FCEA6865D8BF46D /* GeminiTranslationClient.swift in Sources */,
 				7707C0F670EC4C0AE3EE1192 /* LRCLIBClient.swift in Sources */,
 				72EF9E94D7D899B4827D181A /* LiveActivityController.swift in Sources */,
 				2617BE43965945A587328983 /* LyricActivityAttributes.swift in Sources */,
 				6A5D98C85CE464106F5D0982 /* LyricsApp.swift in Sources */,
+				1ED4B6448EC3A43F46A8A0F4 /* LyricsDisplayMode.swift in Sources */,
+				478E87A53301AE75A10A5621 /* LyricsLocalizationCache.swift in Sources */,
 				6292B34F69E908AFE76F0270 /* LyricsOvhClient.swift in Sources */,
 				D2411B407A947689ACD245C0 /* LyricsSyncEngine.swift in Sources */,
 				8A08B856AFDD654535609F85 /* NowPlayingGistClient.swift in Sources */,
 				D62607617B84DFF16069B42E /* SilentAudioKeepAlive.swift in Sources */,
 				EEFC134F609E7CD7431DDC08 /* TimingLogger.swift in Sources */,
 				94D1E90962F8F5EA427F9D9D /* TrackMatch.swift in Sources */,
+				B9B77D8022482BB488AAEB38 /* Transliterator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -38,6 +38,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         GitHubToken: $(GITHUB_TOKEN)
         NowPlayingGistID: $(NOW_PLAYING_GIST_ID)
+        GeminiAPIKey: $(GEMINI_API_KEY)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jayant.lyrics

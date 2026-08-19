@@ -45,6 +45,11 @@ Full design rationale and the current risk/edge-case register live in
    fill in `GITHUB_TOKEN` and `NOW_PLAYING_GIST_ID`, and add that xcconfig to
    the Lyrics target build settings for local Debug/Release builds. Do not
    commit `Lyrics/Secrets.xcconfig`.
+   - `GEMINI_API_KEY` is optional — only needed for the Translated display
+     mode (see below). Get a free key at https://aistudio.google.com/apikey
+     (no card required for the free tier) and set it the same way. Without
+     it, Original and Transliterated modes still work fully; Translated
+     just won't be selectable.
 3. Export the same values before starting the Mac relay:
    `export GITHUB_TOKEN=...` and `export NOW_PLAYING_GIST_ID=...`.
 4. In **Signing & Capabilities**, for **each** of the 3 targets (Lyrics,
@@ -72,6 +77,22 @@ Full design rationale and the current risk/edge-case register live in
    via CarPlay and check whether it surfaces on the Dashboard — this is the
    single biggest open unknown in the whole design and can only be confirmed
    this way.
+
+## Lyrics display modes
+
+Three toggle-able display modes, side by side in the app UI:
+
+- **Original** — exactly what LRCLIB/Lyrics.ovh returns, no transform.
+- **Transliterated** — same words, phonetically romanized into Latin script
+  via Apple's on-device ICU transliterator. Free, offline, instant — no
+  `GEMINI_API_KEY` needed. Meaning is unchanged, only the script.
+- **Translated** — actual English meaning via the Gemini API, batched one
+  request per song (not per line) and cached to disk so replaying a song
+  doesn't re-spend API quota. Requires `GEMINI_API_KEY`.
+
+For a detected-English track, Transliterated/Translated are disabled
+automatically (detected on-device via `NLLanguageRecognizer`, no network
+call) since they'd be near no-ops.
 
 ## Rebuilding the project
 

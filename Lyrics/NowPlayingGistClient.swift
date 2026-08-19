@@ -1,7 +1,6 @@
 import Foundation
 
 enum NowPlayingGistError: Error {
-    case missingConfiguration(String)
     case invalidResponse
     case missingFile
 }
@@ -9,8 +8,6 @@ enum NowPlayingGistError: Error {
 extension NowPlayingGistError: LocalizedError {
     var errorDescription: String? {
         switch self {
-        case .missingConfiguration(let key):
-            return "Missing \(key) in app configuration"
         case .invalidResponse:
             return "Invalid response from GitHub Gist"
         case .missingFile:
@@ -36,8 +33,8 @@ final class NowPlayingGistClient {
     /// Returns nil when nothing is currently playing (the relay script
     /// writes empty track/artist strings in that case), not just on error.
     func fetchCurrentTrack() async throws -> TrackMatch? {
-        let gistID = try Self.configurationValue(for: "NowPlayingGistID")
-        let token = try Self.configurationValue(for: "GitHubToken")
+        let gistID = try AppConfig.value(for: "NowPlayingGistID")
+        let token = try AppConfig.value(for: "GitHubToken")
         let fetchStartedAt = Date()
         var components = URLComponents(string: "https://api.github.com/gists/\(gistID)")!
         components.queryItems = [URLQueryItem(name: "_", value: String(Date().timeIntervalSince1970))]
@@ -69,15 +66,6 @@ final class NowPlayingGistClient {
         let relayAgeMS = Int(Date().timeIntervalSince(match.matchedAt) * 1000)
         TimingLogger.log("gist_fetch_ok network_ms=\(networkMS) relay_age_ms=\(relayAgeMS) track=\"\(match.trackName)\" artist=\"\(match.artistName)\"")
         return match
-    }
-
-    private static func configurationValue(for key: String) throws -> String {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
-              !value.isEmpty,
-              !value.hasPrefix("$(") else {
-            throw NowPlayingGistError.missingConfiguration(key)
-        }
-        return value
     }
 }
 

@@ -18,6 +18,24 @@ struct ContentView: View {
 
             Divider()
 
+            Picker("Display", selection: $syncEngine.displayMode) {
+                ForEach(LyricsDisplayMode.allCases) { mode in
+                    Text(mode.label)
+                        .tag(mode)
+                        .disabled(mode != .original && syncEngine.isEnglishDetected)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if (syncEngine.displayMode == .translated || syncEngine.displayMode == .combined) && syncEngine.isTranslating {
+                HStack(spacing: 6) {
+                    ProgressView()
+                    Text("Translating…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 Text(syncEngine.statusText)
                     .font(.headline)
