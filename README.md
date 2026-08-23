@@ -103,5 +103,26 @@ xcodegen generate
 
 Run this after any change to `project.yml`, or after adding/removing Swift
 files (XcodeGen picks up whole folders, so new files in `Lyrics/`,
-`LyricsBroadcastExtension/`, `LyricsWidget/`, or `Shared/` are included
-automatically — no project.yml change needed for those).
+`LyricsWidget/`, or `Shared/` are included automatically — no project.yml
+change needed for those).
+
+## Running tests
+
+`LyricsTests` unit-tests everything that doesn't need a physical device or
+real network/API access: LRCLIB response parsing and its synced-line lookup,
+the LRCLIB→Lyrics.ovh fallback client, Gemini request/response handling,
+ICU transliteration, `TrackMatch`'s position math, and the on-disk
+localization cache. Network clients take an injected `URLSession`, stubbed
+in tests via `URLProtocolStub` — no live calls, no API quota spent.
+
+```bash
+xcodebuild -project Lyrics.xcodeproj -scheme Lyrics \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test
+```
+
+Or Cmd+U in Xcode. Since `@testable import Lyrics` requires the test bundle
+to host inside the app (app targets aren't frameworks), `ContentView`
+skips starting the real sync engine/keep-alive when
+`ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"]` is
+set — otherwise every test run would poll the real gist and spend Gemini
+quota.

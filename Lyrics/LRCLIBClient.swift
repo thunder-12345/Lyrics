@@ -32,8 +32,12 @@ enum LRCLIBError: Error {
 
 /// Free, no-key synced-lyrics lookup: https://lrclib.net/docs
 final class LRCLIBClient {
-    private let session = URLSession.shared
+    private let session: URLSession
     private var cache: [String: LRCLyrics] = [:]
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
 
     func fetchLyrics(trackName: String, artistName: String) async throws -> LRCLyrics {
         let cacheKey = "\(artistName.lowercased())::\(trackName.lowercased())"

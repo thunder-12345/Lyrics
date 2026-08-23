@@ -17,12 +17,22 @@ final class LyricsLocalizationCache {
     private var store: [String: CachedLocalization] = [:]
     private let ioQueue = DispatchQueue(label: "com.jayant.lyrics.localization-cache", qos: .utility)
 
-    init() {
-        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+    init(directory: URL? = nil) {
+        let dir = directory
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         fileURL = dir.appendingPathComponent("lyrics_localization_cache.json")
         load()
+    }
+
+    /// Blocks until any in-flight `persist()` write has completed. Only
+    /// meaningful in tests, which need the on-disk file to be up to date
+    /// before reading it back with a fresh instance — production code never
+    /// needs to wait on the write since `store` (the in-memory source of
+    /// truth) is already updated synchronously before `persist()` is called.
+    func waitForPendingWrites() {
+        ioQueue.sync {}
     }
 
     private func key(track: String, artist: String) -> String {

@@ -4,7 +4,11 @@ import Foundation
 /// text only — used only when LRCLIB comes back empty, since it has no
 /// timestamp data to sync display to playback.
 final class LyricsOvhClient {
-    private let session = URLSession.shared
+    private let session: URLSession
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
 
     func fetchPlainLyrics(trackName: String, artistName: String) async throws -> String {
         guard let encodedArtist = artistName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),

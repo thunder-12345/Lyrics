@@ -12,7 +12,13 @@ enum GeminiTranslationError: Error {
 /// full-song context than it would translating each line in isolation.
 final class GeminiTranslationClient {
     private static let model = "gemini-3.6-flash"
-    private let session = URLSession.shared
+    private let session: URLSession
+    private let apiKeyProvider: () throws -> String
+
+    init(session: URLSession = .shared, apiKeyProvider: @escaping () throws -> String = { try AppConfig.value(for: "GeminiAPIKey") }) {
+        self.session = session
+        self.apiKeyProvider = apiKeyProvider
+    }
 
     /// Translates each segment independently but in one request. The
     /// returned array is guaranteed either to throw or to be exactly
@@ -20,7 +26,7 @@ final class GeminiTranslationClient {
     /// since that would desync translated text from the original timing.
     func translate(segments: [String]) async throws -> [String] {
         guard !segments.isEmpty else { throw GeminiTranslationError.emptyInput }
-        let apiKey = try AppConfig.value(for: "GeminiAPIKey")
+        let apiKey = try apiKeyProvider()
 
         guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(Self.model):generateContent?key=\(apiKey)") else {
             throw GeminiTranslationError.invalidResponse

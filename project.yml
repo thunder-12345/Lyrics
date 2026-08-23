@@ -46,6 +46,22 @@ targets:
     dependencies:
       - target: LyricsWidget
         embed: true
+    scheme:
+      testTargets:
+        - LyricsTests
+
+  LyricsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - LyricsTests
+    dependencies:
+      - target: Lyrics
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jayant.lyrics.tests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: true
 
   LyricsWidget:
     type: app-extension

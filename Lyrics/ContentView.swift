@@ -39,8 +39,19 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(syncEngine.statusText)
                     .font(.headline)
-                Text(syncEngine.currentLine)
-                    .font(.title3)
+
+                if let split = splitCombinedLine(syncEngine.currentLine) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(split.top)
+                        Divider()
+                        Text(split.bottom)
+                    }
+                    .font(.body)
+                } else {
+                    Text(syncEngine.currentLine)
+                        .font(.title3)
+                }
+
                 Text(syncEngine.nextLine)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -50,6 +61,12 @@ struct ContentView: View {
         }
         .padding()
         .onAppear {
+            // The unit test target hosts inside this app (required for
+            // `@testable import` of an application target) and launches it
+            // like a normal run, so without this guard every test run would
+            // start real background polling: live GitHub/Gemini network
+            // calls and writes to the real on-disk localization cache.
+            guard !isRunningUnderTests else { return }
             UIApplication.shared.isIdleTimerDisabled = true
             keepAlive.start()
             syncEngine.start(keepAlive: keepAlive)
@@ -58,6 +75,17 @@ struct ContentView: View {
             UIApplication.shared.isIdleTimerDisabled = false
         }
     }
+}
+
+private let isRunningUnderTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+
+/// Combined mode packs two lines (transliterated + translated) into
+/// currentLine as "top\nbottom" -- splitting it here renders each half as
+/// its own Text with a divider between them.
+private func splitCombinedLine(_ text: String) -> (top: String, bottom: String)? {
+    let parts = text.components(separatedBy: "\n")
+    guard parts.count == 2 else { return nil }
+    return (parts[0], parts[1])
 }
 
 #Preview {

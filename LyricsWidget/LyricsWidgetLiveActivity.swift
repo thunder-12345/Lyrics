@@ -2,6 +2,29 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
+/// Combined mode packs two lines (transliterated + translated) into
+/// currentLine as "top\nbottom" -- this is the only mode that ever embeds a
+/// newline, so splitting on it is a reliable way to render each half as its
+/// own Text with a divider between them, without threading a separate flag
+/// through ContentState.
+private func splitCombinedLines(_ text: String) -> (top: String, bottom: String)? {
+    let parts = text.components(separatedBy: "\n")
+    guard parts.count == 2 else { return nil }
+    return (parts[0], parts[1])
+}
+
+/// A visible, deliberately non-adaptive divider -- every Live Activity
+/// context here forces a dark background (activityBackgroundTint or the
+/// system's own dark Dynamic Island chrome), so a light hairline reads
+/// reliably rather than risking the near-invisible default separator color.
+private struct DemarcationLine: View {
+    var body: some View {
+        Rectangle()
+            .fill(.white.opacity(0.35))
+            .frame(height: 0.75)
+    }
+}
+
 /// This is what surfaces on the CarPlay Dashboard — same Live Activity mechanism
 /// Musixmatch's CarPlay lyrics feature uses. Keep lines short: this is meant to be
 /// glanced at while driving, not read closely.
@@ -41,18 +64,40 @@ struct LyricsWidgetLiveActivity: Widget {
                         .lineLimit(1)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(context.state.isPaused ? "Paused" : context.state.currentLine)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.75)
+                    if !context.state.isPaused, let split = splitCombinedLines(context.state.currentLine) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(split.top)
+                            DemarcationLine()
+                            Text(split.bottom)
+                        }
+                        .font(.subheadline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    } else {
+                        Text(context.state.isPaused ? "Paused" : context.state.currentLine)
+                            .font(.headline)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
+                    }
                 }
             } compactLeading: {
                 // Fallback used by CarPlay when the small activity family
                 // isn't available; keep it dense so lyrics don't dominate.
-                Text(context.state.isPaused ? "Paused" : context.state.currentLine)
-                    .font(.system(size: 10, weight: .semibold))
+                if !context.state.isPaused, let split = splitCombinedLines(context.state.currentLine) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(split.top)
+                        DemarcationLine()
+                        Text(split.bottom)
+                    }
+                    .font(.system(size: 7, weight: .semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .minimumScaleFactor(0.5)
+                } else {
+                    Text(context.state.isPaused ? "Paused" : context.state.currentLine)
+                        .font(.system(size: 10, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
             } compactTrailing: {
                 Image(systemName: context.state.isPaused ? "pause.fill" : "music.note")
                     .font(.caption2)
@@ -88,13 +133,26 @@ private struct SmallLyricsActivityView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(state.isPaused ? "Paused" : state.currentLine)
-                .font(.system(size: 16, weight: .semibold))
-                .lineLimit(3)
-                .minimumScaleFactor(0.62)
+            if !state.isPaused, let split = splitCombinedLines(state.currentLine) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(split.top)
+                    DemarcationLine()
+                    Text(split.bottom)
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
                 .multilineTextAlignment(.leading)
-                .contentTransition(.identity)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(state.isPaused ? "Paused" : state.currentLine)
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.62)
+                    .multilineTextAlignment(.leading)
+                    .contentTransition(.identity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             if !state.isPaused, !state.nextLine.isEmpty {
                 Text(state.nextLine)
@@ -121,10 +179,21 @@ private struct LockScreenLyricsView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
-            Text(state.isPaused ? "Paused" : state.currentLine)
-                .font(.title3.weight(.semibold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
+            if !state.isPaused, let split = splitCombinedLines(state.currentLine) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(split.top)
+                    DemarcationLine()
+                    Text(split.bottom)
+                }
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+            } else {
+                Text(state.isPaused ? "Paused" : state.currentLine)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+            }
 
             if !state.isPaused {
                 Text(state.nextLine)
