@@ -26,7 +26,7 @@ jobs:
       - name: Pick a simulator
         id: sim
         run: |
-          NAME=$(xcrun simctl list devices available | grep -m1 -oE '^\s*iPhone [^(]+' | sed -E 's/^\s+|\s+$//g')
+          NAME=$(xcrun simctl list devices available | grep -m1 -oE '^\s*iPhone [^(]+' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
           echo "Using simulator: $NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
