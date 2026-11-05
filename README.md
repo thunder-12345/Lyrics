@@ -1,7 +1,7 @@
 # Lyrics
 
-Live synced lyrics on the CarPlay dashboard of a 2019 Honda CR-V, driven by
-whatever is playing on the Mac. It works with any music app that publishes
+Live synced lyrics on a car's CarPlay dashboard, driven by whatever is
+playing on the Mac. It works with any music app that publishes
 macOS Now Playing info, including ones that don't expose an API (e.g. an
 unofficial Spotify web client).
 
@@ -82,12 +82,12 @@ export NOW_PLAYING_GIST_ID=...
 bash mac-relay/update_nowplaying.sh
 ```
 
-To run it at login, copy `mac-relay/com.jayant.lyrics.nowplaying.plist.example`
-to `~/Library/LaunchAgents/com.jayant.lyrics.nowplaying.plist`, fill in the
-token and gist ID, fix the script path if the repo lives elsewhere, then:
+To run it at login, copy the `.plist.example` file in `mac-relay/` to
+`~/Library/LaunchAgents/` (dropping the `.example` suffix), fill in the token
+and gist ID, and set the script path to where the repo lives on your Mac, then:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.jayant.lyrics.nowplaying.plist
+launchctl load ~/Library/LaunchAgents/<plist file name>
 ```
 
 The relay logs timing to `/tmp/lyrics_nowplaying_timing.log`.
@@ -98,9 +98,9 @@ The relay logs timing to `/tmp/lyrics_nowplaying_timing.log`.
    config, edit `project.yml` and rerun `xcodegen generate` instead of editing
    the `.xcodeproj`, or your changes are overwritten.
 2. In **Signing & Capabilities**, set your Team on the `Lyrics` and
-   `LyricsWidget` targets. If the `com.jayant.*` bundle ID prefix collides with
-   something already registered, change `bundleIdPrefix` in `project.yml` and
-   regenerate.
+   `LyricsWidget` targets. Set `bundleIdPrefix` and `DEVELOPMENT_TEAM` in
+   `project.yml` to your own values (a bundle ID that is already registered
+   by someone else will fail to sign), then regenerate.
 3. Make sure Live Activities are enabled for the app in iOS Settings.
 4. Run on a physical iPhone. Live Activities and background audio behave
    differently on Simulator, and CarPlay surfacing can only be confirmed on a
@@ -125,7 +125,6 @@ since they would be near no-ops.
 ## Rebuilding the project
 
 ```bash
-cd /Users/jayant/Lyrics
 xcodegen generate
 ```
 
