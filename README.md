@@ -53,7 +53,7 @@ Music app (Mac)
 | `Shared/` | Code shared by both targets (`TrackMatch`, activity attributes) |
 | `LyricsTests/` | Unit tests |
 | `mac-relay/` | Mac script and launchd plist example |
-| `project.yml` | XcodeGen spec; the `.xcodeproj` is generated from it |
+| `project.yml` | XcodeGen spec; the `.xcodeproj` is generated from it (not committed) |
 
 ## Setup
 
@@ -66,7 +66,8 @@ Music app (Mac)
 ### 2. Secrets for the iOS app
 
 Copy `Lyrics/Secrets.xcconfig.example` to `Lyrics/Secrets.xcconfig` and fill in
-`GITHUB_TOKEN` and `NOW_PLAYING_GIST_ID`. Do not commit `Secrets.xcconfig`.
+`GITHUB_TOKEN`, `NOW_PLAYING_GIST_ID` and `DEVELOPMENT_TEAM` (your Apple
+Developer Team ID, used for signing). Do not commit `Secrets.xcconfig`.
 
 `GEMINI_API_KEY` is optional and only needed for the Translated display mode
 (see below). Get a free key at https://aistudio.google.com/apikey (no card
@@ -94,13 +95,15 @@ The relay logs timing to `/tmp/lyrics_nowplaying_timing.log`.
 
 ### 4. Build and run the app
 
-1. Open `Lyrics.xcodeproj` in Xcode. If you change target or capability
-   config, edit `project.yml` and rerun `xcodegen generate` instead of editing
-   the `.xcodeproj`, or your changes are overwritten.
-2. In **Signing & Capabilities**, set your Team on the `Lyrics` and
-   `LyricsWidget` targets. Set `bundleIdPrefix` and `DEVELOPMENT_TEAM` in
-   `project.yml` to your own values (a bundle ID that is already registered
-   by someone else will fail to sign), then regenerate.
+1. Run `xcodegen generate` (`brew install xcodegen` if needed), then open the
+   generated `Lyrics.xcodeproj` in Xcode. The `.xcodeproj` is not committed,
+   so if you change target or capability config, edit `project.yml` and
+   regenerate instead of editing the `.xcodeproj` by hand.
+2. Set `bundleIdPrefix` in `project.yml` to your own value (a bundle ID that
+   is already registered by someone else will fail to sign), and regenerate.
+   Your team comes from `DEVELOPMENT_TEAM` in `Secrets.xcconfig`; check it
+   under **Signing & Capabilities** for the `Lyrics` and `LyricsWidget`
+   targets.
 3. Make sure Live Activities are enabled for the app in iOS Settings.
 4. Run on a physical iPhone. Live Activities and background audio behave
    differently on Simulator, and CarPlay surfacing can only be confirmed on a
