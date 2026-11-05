@@ -1,98 +1,126 @@
 # Lyrics
 
-CarPlay lyrics for a 2019 Honda CR-V, driven by whatever's actually playing —
-works with any music app, including ones that don't publish now-playing
-metadata (e.g. an unofficial/cracked client), because it identifies audio
-by listening to it (ShazamKit) instead of reading an app's metadata or
-talking to Spotify's API.
+Live synced lyrics on the CarPlay dashboard of a 2019 Honda CR-V, driven by
+whatever is playing on the Mac. It works with any music app that publishes
+macOS Now Playing info, including ones that don't expose an API (e.g. an
+unofficial Spotify web client).
 
 ## How it works
 
-1. **`LyricsBroadcastExtension`** — a Broadcast Upload Extension. You start it
-   once via the system picker in the app; it then keeps running in the
-   background regardless of which app you switch to, receiving the phone's
-   system audio output (never the mic).
-2. **ShazamKit** identifies the track on-device, free, no rate limit.
-3. Match results cross into the main app via an **App Group** + a Darwin
-   notification (the extension and app are separate processes).
-4. **LRCLIB** (free, no key) supplies synced lyrics; **Lyrics.ovh** (free, no
+iOS doesn't let an app read what another app is playing, but macOS does. So
+the Mac reads Now Playing and hands it to the phone through a private GitHub
+Gist.
+
+```
+Music app (Mac)
+  -> macOS Now Playing (private MediaRemote API)
+  -> mac-relay/update_nowplaying.sh   polls every 0.25s via nowplaying-cli
+  -> private GitHub Gist              nowplaying.json, written on track change
+  -> iPhone app                       polls the gist (1s, 0.25s in bursts)
+       -> LRCLIB / Lyrics.ovh         synced lyrics, plain-text fallback
+       -> Transliteration / Gemini    optional display modes
+  -> ActivityKit Live Activity        updated ~4x/sec by LyricsSyncEngine
+  -> CarPlay Dashboard                iOS surfaces the Live Activity itself
+```
+
+1. **Mac relay** (`mac-relay/update_nowplaying.sh`) reads title, artist,
+   elapsed time, duration and playback rate with `nowplaying-cli`, and PATCHes
+   a private gist only when the track changes. A pause has to last about 5
+   seconds before it counts, so brief blips don't flash "Paused" on CarPlay.
+   It runs as a long-lived loop under launchd (`KeepAlive`), because
+   `StartInterval` firings get coalesced by macOS and made new songs feel slow.
+2. **`NowPlayingGistClient`** polls the gist with an authenticated API request
+   plus a cache-busting query parameter (GitHub caches unauthenticated and raw
+   responses for a minute or more).
+3. **`LyricsSyncEngine`** detects track changes, fetches lyrics, and picks the
+   current line from the elapsed time, ticking every 0.25s.
+4. **LRCLIB** (free, no key) supplies synced lyrics. **Lyrics.ovh** (free, no
    key) is a plain-text fallback when LRCLIB has nothing for a track.
-5. The main app stays alive in the background via a silent looped audio
-   buffer, and drives an **ActivityKit Live Activity** that iOS surfaces on
-   the CarPlay Dashboard.
+5. **`SilentAudioKeepAlive`** loops a silent audio buffer under the `.playback`
+   category with `.mixWithOthers`, so the app isn't suspended in the background
+   and keeps updating the Live Activity. It handles interruptions and route
+   changes (calls, CarPlay reconnecting, Bluetooth switching).
+6. **`LiveActivityController`** owns the ActivityKit `Activity`, and the
+   `LyricsWidget` extension renders it. iOS shows it on the CarPlay Dashboard
+   on its own; the app never talks to CarPlay directly.
 
-Full design rationale and the current risk/edge-case register live in
-`/Users/jayant/.claude/plans/nifty-yawning-charm.md`.
+## Project layout
 
-## Current status
+| Path | Purpose |
+| --- | --- |
+| `Lyrics/` | Main app: sync engine, API clients, Live Activity controller, UI |
+| `LyricsWidget/` | Widget extension that renders the Live Activity |
+| `Shared/` | Code shared by both targets (`TrackMatch`, activity attributes) |
+| `LyricsTests/` | Unit tests |
+| `mac-relay/` | Mac script and launchd plist example |
+| `project.yml` | XcodeGen spec; the `.xcodeproj` is generated from it |
 
-- Builds clean for iOS Simulator (`xcodegen generate` then `xcodebuild`) —
-  all three targets compile, including ShazamKit/ActivityKit linking.
-- Launches and runs on Simulator without crashing (confirms the SwiftUI UI,
-  App Group reads, silent-audio keep-alive, and Darwin notification wiring
-  are all sound).
-- **Not yet validated**: ReplayKit app-audio capture, real ShazamKit
-  matching, and CarPlay Live Activity surfacing — none of these function in
-  Simulator and need your physical iPhone + the CR-V.
+## Setup
 
-## Setup steps
+### 1. GitHub gist and token
 
-1. Open `Lyrics.xcodeproj` in Xcode (already generated via XcodeGen from
-   `project.yml` — if you ever hand-edit target/capability config, edit
-   `project.yml` and rerun `xcodegen generate` rather than editing the
-   `.xcodeproj` directly, or your changes will be overwritten next generate).
-2. Copy `Lyrics/Secrets.xcconfig.example` to `Lyrics/Secrets.xcconfig`,
-   fill in `GITHUB_TOKEN` and `NOW_PLAYING_GIST_ID`, and add that xcconfig to
-   the Lyrics target build settings for local Debug/Release builds. Do not
-   commit `Lyrics/Secrets.xcconfig`.
-   - `GEMINI_API_KEY` is optional — only needed for the Translated display
-     mode (see below). Get a free key at https://aistudio.google.com/apikey
-     (no card required for the free tier) and set it the same way. Without
-     it, Original and Transliterated modes still work fully; Translated
-     just won't be selectable.
-3. Export the same values before starting the Mac relay:
-   `export GITHUB_TOKEN=...` and `export NOW_PLAYING_GIST_ID=...`.
-4. In **Signing & Capabilities**, for **each** of the 3 targets (Lyrics,
-   LyricsBroadcastExtension, LyricsWidget): set Team to your personal Apple
-   ID. Confirm App Groups shows enabled on all three, not just the main app.
-   If the `com.jayant.*` bundle ID prefix collides with something already
-   registered, change `bundleIdPrefix` in `project.yml` and rerun
-   `xcodegen generate`.
-5. Connect your iPhone via USB, select it as the run destination, build and
-   run. Simulators can't do ReplayKit broadcast capture or real audio, so
-   real testing needs the device from here on.
-6. **Phase A check**: play music in your third-party app, open Lyrics, tap
-   the broadcast picker button, choose "LyricsBroadcastExtension," start,
-   then switch back to your music app. Watch Console.app (Window → Devices
-   and Simulators, or the standalone Console app with your iPhone selected)
-   filtered to subsystem `com.jayant.lyrics.broadcast` — confirms whether
-   audio is actually reaching the extension and whether ShazamKit gets a
-   real match. This is the one thing that determines whether the whole
-   approach works for your specific app.
-7. Once Phase A checks out, either keep iterating via Xcode/USB, or
-   Product → Archive and sideload the build through AltStore the same way
-   your music app is installed, for day-to-day driving use.
-8. Test the Live Activity on your iPhone's Lock Screen first (should appear
-   automatically once a match + lyrics succeed), then connect to the CR-V
-   via CarPlay and check whether it surfaces on the Dashboard — this is the
-   single biggest open unknown in the whole design and can only be confirmed
-   this way.
+1. Create a **secret gist** containing a file named `nowplaying.json` (any
+   placeholder content is fine, e.g. `{}`). Copy its ID from the URL.
+2. Create a GitHub personal access token with the `gist` scope.
+
+### 2. Secrets for the iOS app
+
+Copy `Lyrics/Secrets.xcconfig.example` to `Lyrics/Secrets.xcconfig` and fill in
+`GITHUB_TOKEN` and `NOW_PLAYING_GIST_ID`. Do not commit `Secrets.xcconfig`.
+
+`GEMINI_API_KEY` is optional and only needed for the Translated display mode
+(see below). Get a free key at https://aistudio.google.com/apikey (no card
+required for the free tier). Without it, Original and Transliterated still work.
+
+### 3. Mac relay
+
+```bash
+brew install nowplaying-cli
+
+export GITHUB_TOKEN=...
+export NOW_PLAYING_GIST_ID=...
+bash mac-relay/update_nowplaying.sh
+```
+
+To run it at login, copy `mac-relay/com.jayant.lyrics.nowplaying.plist.example`
+to `~/Library/LaunchAgents/com.jayant.lyrics.nowplaying.plist`, fill in the
+token and gist ID, fix the script path if the repo lives elsewhere, then:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.jayant.lyrics.nowplaying.plist
+```
+
+The relay logs timing to `/tmp/lyrics_nowplaying_timing.log`.
+
+### 4. Build and run the app
+
+1. Open `Lyrics.xcodeproj` in Xcode. If you change target or capability
+   config, edit `project.yml` and rerun `xcodegen generate` instead of editing
+   the `.xcodeproj`, or your changes are overwritten.
+2. In **Signing & Capabilities**, set your Team on the `Lyrics` and
+   `LyricsWidget` targets. If the `com.jayant.*` bundle ID prefix collides with
+   something already registered, change `bundleIdPrefix` in `project.yml` and
+   regenerate.
+3. Make sure Live Activities are enabled for the app in iOS Settings.
+4. Run on a physical iPhone. Live Activities and background audio behave
+   differently on Simulator, and CarPlay surfacing can only be confirmed on a
+   real phone connected to the car.
 
 ## Lyrics display modes
 
-Three toggle-able display modes, side by side in the app UI:
+Three toggle-able display modes in the app UI:
 
-- **Original** — exactly what LRCLIB/Lyrics.ovh returns, no transform.
-- **Transliterated** — same words, phonetically romanized into Latin script
-  via Apple's on-device ICU transliterator. Free, offline, instant — no
-  `GEMINI_API_KEY` needed. Meaning is unchanged, only the script.
-- **Translated** — actual English meaning via the Gemini API, batched one
-  request per song (not per line) and cached to disk so replaying a song
-  doesn't re-spend API quota. Requires `GEMINI_API_KEY`.
+- **Original**: exactly what LRCLIB/Lyrics.ovh returns, no transform.
+- **Transliterated**: same words, romanized into Latin script via Apple's
+  on-device ICU transliterator. Free, offline, instant; no `GEMINI_API_KEY`
+  needed. Meaning is unchanged, only the script.
+- **Translated**: English meaning via the Gemini API, batched one request per
+  song (not per line) and cached to disk so replaying a song doesn't spend more
+  API quota. Requires `GEMINI_API_KEY`.
 
-For a detected-English track, Transliterated/Translated are disabled
-automatically (detected on-device via `NLLanguageRecognizer`, no network
-call) since they'd be near no-ops.
+For a detected-English track, Transliterated and Translated are disabled
+automatically (detected on-device with `NLLanguageRecognizer`, no network call)
+since they would be near no-ops.
 
 ## Rebuilding the project
 
@@ -101,28 +129,39 @@ cd /Users/jayant/Lyrics
 xcodegen generate
 ```
 
-Run this after any change to `project.yml`, or after adding/removing Swift
-files (XcodeGen picks up whole folders, so new files in `Lyrics/`,
-`LyricsWidget/`, or `Shared/` are included automatically — no project.yml
-change needed for those).
+Run this after any change to `project.yml`, or after adding or removing Swift
+files. XcodeGen picks up whole folders, so new files in `Lyrics/`,
+`LyricsWidget/` or `Shared/` need no `project.yml` change.
 
 ## Running tests
 
-`LyricsTests` unit-tests everything that doesn't need a physical device or
-real network/API access: LRCLIB response parsing and its synced-line lookup,
-the LRCLIB→Lyrics.ovh fallback client, Gemini request/response handling,
-ICU transliteration, `TrackMatch`'s position math, and the on-disk
-localization cache. Network clients take an injected `URLSession`, stubbed
-in tests via `URLProtocolStub` — no live calls, no API quota spent.
+`LyricsTests` covers everything that doesn't need a physical device or real
+network access: LRCLIB response parsing and synced-line lookup, the
+LRCLIB-to-Lyrics.ovh fallback, Gemini request/response handling, ICU
+transliteration, `TrackMatch` position math, and the on-disk localization cache.
+Network clients take an injected `URLSession`, stubbed in tests via
+`URLProtocolStub`, so no live calls are made and no API quota is spent.
 
 ```bash
 xcodebuild -project Lyrics.xcodeproj -scheme Lyrics \
   -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
 
-Or Cmd+U in Xcode. Since `@testable import Lyrics` requires the test bundle
-to host inside the app (app targets aren't frameworks), `ContentView`
-skips starting the real sync engine/keep-alive when
-`ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"]` is
-set — otherwise every test run would poll the real gist and spend Gemini
-quota.
+Or Cmd+U in Xcode. Because `@testable import Lyrics` needs the test bundle to
+host inside the app, `ContentView` skips starting the real sync engine and
+keep-alive when `XCTestConfigurationFilePath` is set. Otherwise every test run
+would poll the real gist and spend Gemini quota.
+
+CI (`.github/workflows/ci.yml`) builds and runs the tests on every push to
+`main` and on pull requests, using the placeholder values from
+`Secrets.xcconfig.example`.
+
+## Known limitations
+
+- The Mac has to be on, awake and running the relay for lyrics to update.
+- The relay uses `nowplaying-cli`, which relies on a private macOS API that
+  Apple could change.
+- Latency is bounded by the gist round trip: the relay write plus the phone's
+  next poll.
+- Whether the Live Activity appears on the CarPlay Dashboard depends on iOS,
+  not on this app.
